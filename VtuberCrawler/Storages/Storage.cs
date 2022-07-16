@@ -11,11 +11,12 @@ namespace VtuberCrawler.Storages
         private string _path;
         private Dictionary<TKey, T> _storage;
         private Func<T, TKey> _keySelector;
-        private CsvConfiguration _configuration = new CsvConfiguration(CultureInfo.InvariantCulture)
-        {
-            HasHeaderRecord = true,
-            ShouldQuote = (args) => true
-        };
+        private CsvConfiguration createConfiguration() =>
+            new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                HasHeaderRecord = true,
+                ShouldQuote = (args) => true
+            };
 
         public Storage(string path, Func<T, TKey> keySelector)
         {
@@ -50,14 +51,21 @@ namespace VtuberCrawler.Storages
             _storage.Remove(_keySelector(model));
         }
 
-        public async Task Load()
+        public async Task Load(bool ignoreMissing = false)
         {
             _storage = new();
 
             if (File.Exists(_path))
             {
+                var configuration = createConfiguration();
+                if (ignoreMissing)
+                {
+                    configuration.HeaderValidated = null;
+                    configuration.MissingFieldFound = null;
+                }
+
                 using (var reader = new StreamReader(_path, new UTF8Encoding(true)))
-                using (var csv = new CsvReader(reader, _configuration))
+                using (var csv = new CsvReader(reader, configuration))
                 {
                     var records = await csv.GetAllRecordsAsync<T>();
                     _storage = records.ToDictionary(_keySelector);
@@ -68,7 +76,7 @@ namespace VtuberCrawler.Storages
         public async Task Save(Func<IReadOnlyList<T>, IEnumerable<T>> orderBy)
         {
             using (var writer = new StreamWriter(_path, false, new UTF8Encoding(true)))
-            using (var csv = new CsvWriter(writer, _configuration))
+            using (var csv = new CsvWriter(writer, createConfiguration()))
             {
                 csv.WriteHeader<T>();
                 csv.NextRecord();

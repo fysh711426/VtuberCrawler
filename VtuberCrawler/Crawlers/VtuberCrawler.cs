@@ -19,10 +19,10 @@ namespace VtuberCrawler.Crawlers
             _db = db;
         }
 
-        public async Task Load()
+        public async Task Load(bool ignoreMissing = false)
         {
             _id = 1;
-            await _db.Vtubers.Load();
+            await _db.Vtubers.Load(ignoreMissing);
         }
 
         public async Task Save()

@@ -18,6 +18,11 @@ namespace VtuberCrawler.Crawlers
             _db = db;
         }
 
+        public async Task Load(bool ignoreMissing = false)
+        {
+            await _db.Datas.Load(ignoreMissing);
+        }
+
         public async Task Save()
         {
             await _db.Datas.Save(list => list.OrderBy(it => it.Id));

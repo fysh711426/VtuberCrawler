@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics;
+using System.Text.RegularExpressions;
 using VtuberCrawler.Crawlers;
+using VtuberCrawler.Extensions;
 using VtuberCrawler.Storages;
 
 namespace VtuberDataCrawler
@@ -73,18 +75,45 @@ namespace VtuberDataCrawler
                     var str = (ts.Hours.ToString("00") == "00" ? "" : ts.Hours.ToString("00") + "h") + ts.Minutes.ToString("00") + "m" + ts.Seconds.ToString("00") + "s";
                     Console.WriteLine($"[{_time}] Save data success. @ {str}");
                 }
+                if (action == "update model")
+                {
+                    var _vtuberCrawler = new _VtuberCrawler(now, db);
+                    await _vtuberCrawler.Load(true);
+                    await _vtuberCrawler.Save();
+
+                    var csvList = Directory.GetDirectories(workDir)
+                        .SelectMany(it => Directory.GetFiles(it))
+                        .Where(it => Regex.IsMatch(it, @"[\d]{4}-[\d]{2}"))
+                        .ToList();
+                    foreach (var path in csvList)
+                    {
+                        var _db = new DbContext();
+                        _db.Datas = new(path, it => it.ChannelUrl);
+                        var dataCrawler = new DataCrawler(now, _db);
+                        await dataCrawler.Load(true);
+                        await dataCrawler.Save();
+                    }
+
+                    var _time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    var ts = DateTime.Parse(_time) - now;
+                    var str = (ts.Hours.ToString("00") == "00" ? "" : ts.Hours.ToString("00") + "h") + ts.Minutes.ToString("00") + "m" + ts.Seconds.ToString("00") + "s";
+                    Console.WriteLine($"[{_time}] Update model success. @ {str}");
+                }
                 else
                 {
                     throw new Exception("Wrong action.");
                 }
 
-                var info = new ProcessStartInfo(
+                if (args.FirstOrDefault() == "auto")
+                {
+                    var info = new ProcessStartInfo(
                     Path.Combine(workDir, "auto_commit.bat"));
-                info.WorkingDirectory = workDir;
-                info.CreateNoWindow = false;
-                info.UseShellExecute = false;
-                var process = Process.Start(info);
-                process?.WaitForExit();
+                    info.WorkingDirectory = workDir;
+                    info.CreateNoWindow = false;
+                    info.UseShellExecute = false;
+                    var process = Process.Start(info);
+                    process?.WaitForExit();
+                }
             }
             catch (Exception ex)
             {
