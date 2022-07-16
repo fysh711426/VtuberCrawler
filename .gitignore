@@ -1,0 +1,6 @@
+/VtuberCrawler/bin
+/VtuberCrawler/obj
+/VtuberCrawler/.vs
+/VtuberCrawler/*.user
+/VtuberCrawler/Properties/PublishProfiles/*.pubxml
+/VtuberCrawler/Properties/PublishProfiles/*.user
