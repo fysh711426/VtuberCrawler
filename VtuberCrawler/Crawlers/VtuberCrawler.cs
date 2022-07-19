@@ -150,7 +150,7 @@ namespace VtuberCrawler.Crawlers
                                 model.ChannelName = info.Title;
                             if (info.Thumbnails.Count > 0)
                                 model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
-                            model.Area = "TW";
+                            //model.Area = "TW";
                             model.Status = status;
                             Console.WriteLine($"[{time}][{index}/{count}] Update tw vtuber {model.Name}");
                         }

@@ -75,7 +75,7 @@ namespace VtuberDataCrawler
                     var str = (ts.Hours.ToString("00") == "00" ? "" : ts.Hours.ToString("00") + "h") + ts.Minutes.ToString("00") + "m" + ts.Seconds.ToString("00") + "s";
                     Console.WriteLine($"[{_time}] Save data success. @ {str}");
                 }
-                if (action == "update model")
+                else if(action == "update model")
                 {
                     var _vtuberCrawler = new _VtuberCrawler(now, db);
                     await _vtuberCrawler.Load(true);
