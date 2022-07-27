@@ -5,9 +5,9 @@
         public static string GetCountText(this long val)
         {
             if (val >= 100000000)
-                return (val / 100000000).ToString("0.##") + "億";
+                return ((double)val / 100000000).ToString("0.##") + "億";
             if (val >= 10000)
-                return (val / 10000).ToString("0.##") + "萬";
+                return ((double)val / 10000).ToString("0.##") + "萬";
             return val.ToString();
         }
 

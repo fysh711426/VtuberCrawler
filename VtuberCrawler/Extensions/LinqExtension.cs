@@ -35,7 +35,7 @@
             Func<TSource, TKey> selector)
         {
             var rank = 1;
-            var count = 1;
+            var count = 0;
             var first = true;
             var prev = default(TSource)!;
 
@@ -56,7 +56,7 @@
                 }
                 else
                 {
-                    rank += count;
+                    rank += count + 1;
                     yield return new RankItem<TSource>(rank, item);
                     count = 0;
                     prev = item;
