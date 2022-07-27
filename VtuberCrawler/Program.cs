@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Text.RegularExpressions;
+using VtuberCrawler.Api;
 using VtuberCrawler.Crawlers;
 using VtuberCrawler.Extensions;
 using VtuberCrawler.Storages;
@@ -74,6 +75,33 @@ namespace VtuberDataCrawler
                     var ts = DateTime.Parse(_time) - now;
                     var str = (ts.Hours.ToString("00") == "00" ? "" : ts.Hours.ToString("00") + "h") + ts.Minutes.ToString("00") + "m" + ts.Seconds.ToString("00") + "s";
                     Console.WriteLine($"[{_time}] Save data success. @ {str}");
+                }
+                if (action == "vtuber" || action == "data" || action == "create api")
+                {
+                    var csvList = Directory.GetDirectories(workDir)
+                        .Where(it => Regex.IsMatch(it, @"[\d]{4}-[\d]{2}"))
+                        .OrderByDescending(it => it)
+                        .Take(5)
+                        .SelectMany(it => Directory.GetFiles(it))
+                        .OrderByDescending(it => it)
+                        .ToList();
+
+                    var today = csvList.First()
+                        .Pipe(it => Regex.Match(it, @"([\d]{4}-[\d]{2}-[\d]{2})"))
+                        .Select(m => DateTime.Parse(m.Groups[1].Value).Date);
+
+                    var apiPath = Path.Combine(workDir, "api");
+                    if (!Directory.Exists(apiPath))
+                        Directory.CreateDirectory(apiPath);
+
+                    var creator = new JsonDataCreator(apiPath, vtuberPath, today);
+                    creator.Init(csvList);
+                    await creator.Update();
+
+                    var _time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    var ts = DateTime.Parse(_time) - now;
+                    var str = (ts.Hours.ToString("00") == "00" ? "" : ts.Hours.ToString("00") + "h") + ts.Minutes.ToString("00") + "m" + ts.Seconds.ToString("00") + "s";
+                    Console.WriteLine($"[{_time}] Save api success. @ {str}");
                 }
                 else if(action == "update model")
                 {
