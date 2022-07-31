@@ -56,6 +56,7 @@ namespace VtuberDataCrawler
                 if (action == "vtuber")
                 {
                     await vtuberCrawler.CreateOrUpdateVtubersTw();
+                    await vtuberCrawler.CreateOrUpdateVtubersFromTwVtData();
                     await vtuberCrawler.CreateOrUpdateVtubersJp();
                     await vtuberCrawler.Save();
 

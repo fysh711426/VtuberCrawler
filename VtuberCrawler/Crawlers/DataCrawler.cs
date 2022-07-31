@@ -57,9 +57,18 @@ namespace VtuberCrawler.Crawlers
                 var videosByDay30 = new List<ChannelVideo>();
 
                 var videos = await Retry(() =>
-                    youtube.Channel.GetVideosAsync(vtuber.ChannelUrl)
-                        .BreakOn(it => it.PublishedTimeSeconds >= TimeSeconds.Month)
-                        .ToListAsync().AsTask());
+                {
+                    var count = 0;
+                    return youtube.Channel.GetVideosAsync(vtuber.ChannelUrl)
+                        .BreakOn(it =>
+                        {
+                            count++;
+                            if (count > 2 && it.PublishedTimeSeconds >= TimeSeconds.Month)
+                                return true;
+                            return false;
+                        })
+                        .ToListAsync().AsTask();
+                });
 
                 var first = null as ChannelVideo;
                 var second = null as ChannelVideo;

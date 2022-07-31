@@ -1,5 +1,7 @@
-﻿using System.Text.RegularExpressions;
+﻿using Newtonsoft.Json;
+using System.Text.RegularExpressions;
 using VtuberCrawler.Extensions;
+using VtuberCrawler.Jsons;
 using VtuberCrawler.Models;
 using VtuberCrawler.Storages;
 using YoutubeParser;
@@ -150,7 +152,8 @@ namespace VtuberCrawler.Crawlers
                                 model.ChannelName = info.Title;
                             if (info.Thumbnails.Count > 0)
                                 model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
-                            //model.Area = "TW";
+                            if (model.Area == "")
+                                model.Area = "TW";
                             model.Status = status;
                             Console.WriteLine($"[{time}][{index}/{count}] Update tw vtuber {model.Name}");
                         }
@@ -193,13 +196,142 @@ namespace VtuberCrawler.Crawlers
                         if (model == null)
                             continue;
 
-                        if (model.Id < 0)
+                        //if (model.Id < 0)
                         {
                             model.Area = tag.area;
                             var time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                             Console.WriteLine($"[{time}] Update area {model.Name}");
                         }
                     }
+                }
+            }
+        }
+
+        public async Task CreateOrUpdateVtubersFromTwVtData()
+        {
+            // Update Vtuber Data
+            {
+                var clinet = _httpClient;
+
+                using var response = await Retry(() =>
+                {
+                    var url = "https://api.github.com/repos/TaiwanVtuberData/TaiwanVTuberTrackingDataJson/commits/master";
+                    return clinet.GetAsync(url);
+                });
+                var html = await response.Content.ReadAsStringAsync();
+
+                var api = html
+                    .Pipe(it => Regex.Match(it, @"""sha"": ""(.*?)"""))
+                    .Select(m => m.Groups[1].Value)
+                    .Pipe(it => $"https://cdn.statically.io/gh/TaiwanVtuberData/TaiwanVTuberTrackingDataJson/{it}/api/v2/all/vtubers/all.json");
+
+                using var _response = await Retry(() =>
+                {
+                    return clinet.GetAsync(api);
+                });
+                var json = await _response.Content.ReadAsStringAsync();
+
+                var vtubers = JsonConvert.DeserializeObject<TaiwanVtuberData>(json)?
+                    .VTubers.ToList() ?? new List<TaiwanVtuberData.VTuber>();
+
+                Status getStatus(string activity)
+                {
+                    if (activity == "preparing")
+                        return Status.Prepare;
+                    if (activity == "graduate")
+                        return Status.Graduate;
+                    return Status.Activity;
+                }
+
+                string getArea(string nationality)
+                {
+                    if (nationality == "UNKNOWN")
+                        return "";
+                    return nationality;
+                }
+
+                var index = 0;
+                var count = vtubers.Count;
+                foreach (var item in vtubers)
+                {
+                    index++;
+                    if (item.YouTube.id == "")
+                        continue;
+
+                    var youtubeUrl = $"https://www.youtube.com/channel/{item.YouTube.id}";
+
+                    var model = _db.Vtubers.Get(youtubeUrl);
+                    if (model != null)
+                        if (model.Status != Status.Prepare &&
+                            model.Status != Status.Activity)
+                            continue;
+
+                    var data = _db.Datas.Get(youtubeUrl);
+                    if (data != null)
+                        continue;
+
+                    var time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    var youtube = new YoutubeClient(() => DelayRandom());
+                    var info = null as Channel;
+                    try
+                    {
+                        info = await Retry(() =>
+                            youtube.Channel.GetAsync(youtubeUrl));
+                    }
+                    catch (Exception ex)
+                    {
+                        var channelId = youtubeUrl.Replace("https://www.youtube.com/channel/", "");
+                        Console.WriteLine($"[Error] {channelId}");
+                        Console.WriteLine(ex.Message);
+                        await SleepRandom();
+                        continue;
+                    }
+                    var status = getStatus(item.activity);
+                    if (info.Title == "")
+                        status = Status.Graduate;
+                    var area = getArea(item.nationality);
+                    if (model == null)
+                    {
+                        model = new Vtuber();
+                        model.Id = (_id++) * -1;
+                        model.ChannelUrl = youtubeUrl;
+                        model.Name = item.name;
+                        model.Area = area;
+                        model.Status = status;
+                        model.CreateTime = _now.ToString("yyyy-MM-dd HH:mm:ss");
+                        model.ChannelName = info.Title;
+                        model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
+                        _db.Vtubers.Create(model);
+                        Console.WriteLine($"[{time}][{index}/{count}] Create tw vtuber {model.Name}");
+                    }
+                    else
+                    {
+                        if (model.Status == Status.Prepare ||
+                            model.Status == Status.Activity)
+                        {
+                            // If the status changed from prepare to activity, update the time.
+                            if (status == Status.Activity && model.Status == Status.Prepare)
+                                model.CreateTime = _now.ToString("yyyy-MM-dd HH:mm:ss");
+                            //if (item.name != "")
+                            //    model.Name = item.name;
+                            if (info.Title != "")
+                                model.ChannelName = info.Title;
+                            if (info.Thumbnails.Count > 0)
+                                model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
+                            if (model.Area == "")
+                                model.Area = area;
+                            model.Status = status;
+                            Console.WriteLine($"[{time}][{index}/{count}] Update tw vtuber {model.Name}");
+                        }
+                    }
+                    data = new Data
+                    {
+                        ChannelUrl = model.ChannelUrl,
+                        SubscriberCount = info.SubscriberCount,
+                        ViewCount = info.ViewCount
+                    };
+                    _db.Datas.Create(data);
+                    await SleepRandom();
                 }
             }
         }
