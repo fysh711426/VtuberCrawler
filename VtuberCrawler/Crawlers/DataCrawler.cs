@@ -36,15 +36,16 @@ namespace VtuberCrawler.Crawlers
             foreach (var vtuber in vtubers)
             {
                 index++;
-                var data = _db.Datas.Get(vtuber.ChannelUrl);
                 if (vtuber.Status != Status.Activity)
                 {
-                    if (data != null)
-                        _db.Datas.Delete(data);
+                    var _data = _db.Datas.Get(vtuber.ChannelUrl);
+                    if (_data != null)
+                        _db.Datas.Delete(_data);
                     continue;
                 }
                 
                 var youtube = new YoutubeClient(() => DelayRandom());
+                var data = _db.Datas.Get(vtuber.ChannelUrl);
                 if (data == null)
                 {
                     var channel = await Retry(() => 
@@ -97,6 +98,9 @@ namespace VtuberCrawler.Crawlers
                     second?.PublishedTimeSeconds >= TimeSeconds.Month * 3)
                 {
                     vtuber.Status = Status.NotActivity;
+                    var _data = _db.Datas.Get(vtuber.ChannelUrl);
+                    if (_data != null)
+                        _db.Datas.Delete(_data);
                     var _time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                     Console.WriteLine($"[{_time}][{index}/{count}] Update vtuber not activity {vtuber.Name}");
                     await SleepRandom();
