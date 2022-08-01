@@ -36,11 +36,15 @@ namespace VtuberCrawler.Crawlers
             foreach (var vtuber in vtubers)
             {
                 index++;
-                if (vtuber.Status != Status.Activity)
-                    continue;
-
-                var youtube = new YoutubeClient(() => DelayRandom());
                 var data = _db.Datas.Get(vtuber.ChannelUrl);
+                if (vtuber.Status != Status.Activity)
+                {
+                    if (data != null)
+                        _db.Datas.Delete(data);
+                    continue;
+                }
+                
+                var youtube = new YoutubeClient(() => DelayRandom());
                 if (data == null)
                 {
                     var channel = await Retry(() => 
@@ -148,7 +152,7 @@ namespace VtuberCrawler.Crawlers
                     HighestViewSingingVideoTitleDay30 = highestSingingDay30?.Title ?? "",
                     HighestViewSingingVideoThumbnailDay30 = highestSingingDay30?.Thumbnails?.LastOrDefault()?.Url ?? "",
                 };
-                _db.Datas.Create(data);
+                _db.Datas.CreateOrUpdate(data);
 
                 var time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 Console.WriteLine($"[{time}][{index}/{count}] Create data {vtuber.Name}");

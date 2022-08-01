@@ -50,13 +50,12 @@ namespace VtuberDataCrawler
                 db.Vtubers = new(vtuberPath, it => it.ChannelUrl);
                 db.Datas = new(dataPath, it => it.ChannelUrl);
 
-                var vtuberCrawler = new _VtuberCrawler(now, db);
-                await vtuberCrawler.Load();
-
                 if (action == "vtuber")
                 {
-                    await vtuberCrawler.CreateOrUpdateVtubersTw();
+                    var vtuberCrawler = new _VtuberCrawler(now, db);
+                    await vtuberCrawler.Load();
                     await vtuberCrawler.CreateOrUpdateVtubersFromTwVtData();
+                    await vtuberCrawler.CreateOrUpdateVtubersTw();
                     await vtuberCrawler.CreateOrUpdateVtubersJp();
                     await vtuberCrawler.Save();
 
@@ -67,6 +66,8 @@ namespace VtuberDataCrawler
                 }
                 if (action == "vtuber" || action == "data")
                 {
+                    var vtuberCrawler = new _VtuberCrawler(now, db);
+                    await vtuberCrawler.Load();
                     var dataCrawler = new DataCrawler(now, db);
                     await dataCrawler.CreateAndCalcData();
                     await dataCrawler.Save();
@@ -106,9 +107,9 @@ namespace VtuberDataCrawler
                 }
                 else if(action == "update model")
                 {
-                    var _vtuberCrawler = new _VtuberCrawler(now, db);
-                    await _vtuberCrawler.Load(true);
-                    await _vtuberCrawler.Save();
+                    var vtuberCrawler = new _VtuberCrawler(now, db);
+                    await vtuberCrawler.Load(true);
+                    await vtuberCrawler.Save();
 
                     var csvList = Directory.GetDirectories(workDir)
                         .SelectMany(it => Directory.GetFiles(it))

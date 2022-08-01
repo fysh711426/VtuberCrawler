@@ -41,7 +41,7 @@ namespace VtuberCrawler.Storages
             return default(T);
         }
 
-        public void Create(T model)
+        public void CreateOrUpdate(T model)
         {
             _storage[_keySelector(model)] = model;
         }

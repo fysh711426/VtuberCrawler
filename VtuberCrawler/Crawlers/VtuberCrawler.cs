@@ -135,7 +135,7 @@ namespace VtuberCrawler.Crawlers
                         model.CreateTime = _now.ToString("yyyy-MM-dd HH:mm:ss");
                         model.ChannelName = info.Title;
                         model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
-                        _db.Vtubers.Create(model);
+                        _db.Vtubers.CreateOrUpdate(model);
                         Console.WriteLine($"[{time}][{index}/{count}] Create tw vtuber {model.Name}");
                     }
                     else
@@ -154,7 +154,8 @@ namespace VtuberCrawler.Crawlers
                                 model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
                             if (model.Area == "")
                                 model.Area = "TW";
-                            model.Status = status;
+                            if (model.Status < status)
+                                model.Status = status;
                             Console.WriteLine($"[{time}][{index}/{count}] Update tw vtuber {model.Name}");
                         }
                     }
@@ -164,7 +165,7 @@ namespace VtuberCrawler.Crawlers
                         SubscriberCount = info.SubscriberCount,
                         ViewCount = info.ViewCount
                     };
-                    _db.Datas.Create(data);
+                    _db.Datas.CreateOrUpdate(data);
                     await SleepRandom();
                 }
             }
@@ -301,7 +302,7 @@ namespace VtuberCrawler.Crawlers
                         model.CreateTime = _now.ToString("yyyy-MM-dd HH:mm:ss");
                         model.ChannelName = info.Title;
                         model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
-                        _db.Vtubers.Create(model);
+                        _db.Vtubers.CreateOrUpdate(model);
                         Console.WriteLine($"[{time}][{index}/{count}] Create tw vtuber {model.Name}");
                     }
                     else
@@ -320,7 +321,8 @@ namespace VtuberCrawler.Crawlers
                                 model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
                             if (model.Area == "")
                                 model.Area = area;
-                            model.Status = status;
+                            if (model.Status < status)
+                                model.Status = status;
                             Console.WriteLine($"[{time}][{index}/{count}] Update tw vtuber {model.Name}");
                         }
                     }
@@ -330,7 +332,7 @@ namespace VtuberCrawler.Crawlers
                         SubscriberCount = info.SubscriberCount,
                         ViewCount = info.ViewCount
                     };
-                    _db.Datas.Create(data);
+                    _db.Datas.CreateOrUpdate(data);
                     await SleepRandom();
                 }
             }
@@ -436,7 +438,7 @@ namespace VtuberCrawler.Crawlers
                             model.CreateTime = _now.ToString("yyyy-MM-dd HH:mm:ss"); ;
                             model.ChannelName = info.Title;
                             model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
-                            _db.Vtubers.Create(model);
+                            _db.Vtubers.CreateOrUpdate(model);
                             Console.WriteLine($"[{time}][{index}/{count}] Create jp vtuber {model.Name}");
                         }
                         else
@@ -459,7 +461,7 @@ namespace VtuberCrawler.Crawlers
                             SubscriberCount = info.SubscriberCount,
                             ViewCount = info.ViewCount
                         };
-                        _db.Datas.Create(data);
+                        _db.Datas.CreateOrUpdate(data);
                         await SleepRandom();
                     }
                 }
