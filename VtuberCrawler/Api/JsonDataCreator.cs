@@ -169,6 +169,7 @@ namespace VtuberCrawler.Api
             {
                 return new JsonData
                 {
+                    Id = item.data.Id,
                     ChannelUrl = item.data.ChannelUrl,
                     Name = item.vtuber.Name,
                     Thumbnail = item.vtuber.Thumbnail,
@@ -211,6 +212,7 @@ namespace VtuberCrawler.Api
             {
                 return new JsonData
                 {
+                    Id = item.data.Id,
                     ChannelUrl = item.data.ChannelUrl,
                     Name = item.vtuber.Name,
                     Thumbnail = item.vtuber.Thumbnail,
@@ -230,6 +232,7 @@ namespace VtuberCrawler.Api
             {
                 return new JsonData
                 {
+                    Id = item.data.Id,
                     ChannelUrl = item.data.ChannelUrl,
                     Name = item.vtuber.Name,
                     Thumbnail = item.vtuber.Thumbnail,
@@ -297,6 +300,7 @@ namespace VtuberCrawler.Api
             {
                 return new JsonData
                 {
+                    Id = item.data.Id,
                     ChannelUrl = item.data.ChannelUrl,
                     Name = item.vtuber.Name,
                     Thumbnail = item.vtuber.Thumbnail,
@@ -316,6 +320,7 @@ namespace VtuberCrawler.Api
             {
                 return new JsonData
                 {
+                    Id = item.data.Id,
                     ChannelUrl = item.data.ChannelUrl,
                     Name = item.vtuber.Name,
                     Thumbnail = item.vtuber.Thumbnail,
@@ -384,6 +389,7 @@ namespace VtuberCrawler.Api
             {
                 return new JsonData
                 {
+                    Id = item.data.Id,
                     ChannelUrl = item.data.ChannelUrl,
                     Name = item.vtuber.Name,
                     Thumbnail = item.vtuber.Thumbnail,
@@ -476,6 +482,7 @@ namespace VtuberCrawler.Api
             {
                 return new JsonData
                 {
+                    Id = item.data.Id,
                     ChannelUrl = item.data.ChannelUrl,
                     Name = item.vtuber.Name,
                     Thumbnail = item.vtuber.Thumbnail,

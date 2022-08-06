@@ -8,6 +8,7 @@ namespace VtuberCrawler.Api
 {
     public class JsonData
     {
+        public int? Id { get; set; }
         public string? ChannelUrl { get; set; }
         public string? Name { get; set; }
         public string? Thumbnail { get; set; }
