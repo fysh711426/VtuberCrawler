@@ -1,6 +1,6 @@
-# Vtuber Ctawler  
+# Vtuber Crawler  
 
-這個 repo 是下列網站的資料抓取程式。  
+這個 repo 是此網站的資料抓取程式。  
 
 [https://fysh711426.github.io/vtuber/index.html](https://fysh711426.github.io/vtuber/index.html)  
 
