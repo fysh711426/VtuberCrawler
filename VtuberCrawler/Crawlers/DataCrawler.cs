@@ -74,6 +74,21 @@ namespace VtuberCrawler.Crawlers
                         })
                         .ToListAsync().AsTask();
                 });
+                await SleepRandom();
+                var streams = await Retry(() =>
+                {
+                    var count = 0;
+                    return youtube.Channel.GetStreamsAsync(vtuber.ChannelUrl)
+                        .BreakOn(it =>
+                        {
+                            count++;
+                            if (count > 2 && it.PublishedTimeSeconds >= TimeSeconds.Month)
+                                return true;
+                            return false;
+                        })
+                        .ToListAsync().AsTask();
+                });
+                videos.AddRange(streams);
 
                 var first = null as ChannelVideo;
                 var second = null as ChannelVideo;
@@ -97,10 +112,10 @@ namespace VtuberCrawler.Crawlers
                 if (first?.PublishedTimeSeconds >= TimeSeconds.Month * 3 &&
                     second?.PublishedTimeSeconds >= TimeSeconds.Month * 3)
                 {
-                    vtuber.Status = Status.NotActivity;
-                    var _data = _db.Datas.Get(vtuber.ChannelUrl);
-                    if (_data != null)
-                        _db.Datas.Delete(_data);
+                    //vtuber.Status = Status.NotActivity;
+                    //var _data = _db.Datas.Get(vtuber.ChannelUrl);
+                    //if (_data != null)
+                    //    _db.Datas.Delete(_data);
                     var _time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                     Console.WriteLine($"[{_time}][{index}/{count}] Update vtuber not activity {vtuber.Name}");
                     await SleepRandom();
