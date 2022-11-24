@@ -112,10 +112,12 @@ namespace VtuberCrawler.Crawlers
                 if (first?.PublishedTimeSeconds >= TimeSeconds.Month * 3 &&
                     second?.PublishedTimeSeconds >= TimeSeconds.Month * 3)
                 {
-                    //vtuber.Status = Status.NotActivity;
-                    //var _data = _db.Datas.Get(vtuber.ChannelUrl);
-                    //if (_data != null)
-                    //    _db.Datas.Delete(_data);
+                    // ----- NotActivity -----
+                    vtuber.Status = Status.NotActivity;
+                    var _data = _db.Datas.Get(vtuber.ChannelUrl);
+                    if (_data != null)
+                        _db.Datas.Delete(_data);
+                    // ----- NotActivity -----
                     var _time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                     Console.WriteLine($"[{_time}][{index}/{count}] Update vtuber not activity {vtuber.Name}");
                     await SleepRandom();
