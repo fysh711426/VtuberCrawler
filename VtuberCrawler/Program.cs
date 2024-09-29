@@ -55,8 +55,9 @@ namespace VtuberDataCrawler
                     var vtuberCrawler = new _VtuberCrawler(now, db);
                     await vtuberCrawler.Load();
                     await vtuberCrawler.CreateOrUpdateVtubersFromTwVtData();
-                    await vtuberCrawler.CreateOrUpdateVtubersTw();
-                    await vtuberCrawler.CreateOrUpdateVtubersJp();
+                    //await vtuberCrawler.CreateOrUpdateVtubersTw();
+                    //await vtuberCrawler.CreateOrUpdateVtubersJp();
+                    await vtuberCrawler.CreateOrUpdateVtubersJpFromHololist();
                     await vtuberCrawler.Save();
 
                     var _time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");

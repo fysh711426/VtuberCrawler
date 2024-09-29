@@ -576,5 +576,470 @@ namespace VtuberCrawler.Crawlers
                 }
             }
         }
+
+        public async Task CreateOrUpdateVtubersJpFromHololist()
+        {
+            _cacheChannelUrl = new Dictionary<string, string>();
+
+            // Update Vtuber Data Hololive
+            {
+                var index = 0;
+
+                var nextChapterUrl = $"https://hololist.net/hololive-popularity-ranking/";
+
+                while (true)
+                {
+                    using var response = await Retry(() =>
+                    {
+                        var clinet = _httpClient;
+                        var url = nextChapterUrl;
+                        return clinet.GetAsync(url);
+                    });
+                    var html = await response.Content.ReadAsStringAsync();
+                    var vtubers = html
+                        .Pipe(it => Regex.Match(it, @"class=""row""([\s\S]*?)pagination"))
+                        .Select(m => m.Groups[1].Value)
+                        .Pipe(it => Regex.Matches(it, @"https:\/\/hololist\.net\/(.*?)\/"" title=""(.*?)"""))
+                        .SelectMany<(string userId, string name)>(m => (
+                            m.Groups[1].Value.Trim(),
+                            m.Groups[2].Value.Trim()
+                        ));
+
+                    string getGroup(string group)
+                    {
+                        if (group == "Japan (JP)")
+                            return "JP";
+                        //if (group == "hololive English")
+                        //    return "EN";
+                        if (group == "Indonesia (ID)")
+                            return "ID";
+                        return "";
+                    }
+
+                    foreach (var item in vtubers)
+                    {
+                        index++;
+
+                        using var _response = await Retry(() =>
+                        {
+                            var clinet = _httpClient;
+                            var url = $"https://hololist.net/{item.userId}/";
+                            return clinet.GetAsync(url);
+                        });
+                        var _html = await _response.Content.ReadAsStringAsync();
+
+                        var youtubeUrl = Regex.Match(_html, @"(https:\/\/www\.youtube\.com\/channel\/.*?)\?")
+                            .Groups[1].Value.Trim();
+                        if (youtubeUrl == "")
+                            continue;
+
+                        var model = _db.Vtubers.Get(youtubeUrl);
+                        if (model != null)
+                            if (model.Status != Status.Prepare &&
+                                model.Status != Status.Activity)
+                                continue;
+
+                        var data = _db.Datas.Get(youtubeUrl);
+                        if (data != null)
+                            continue;
+
+                        _cacheChannelUrl[item.userId] = youtubeUrl;
+
+                        var time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        var youtube = new YoutubeClient(() => DelayRandom());
+                        var info = null as Channel;
+                        try
+                        {
+                            info = await Retry(() =>
+                                youtube.Channel.GetAsync(youtubeUrl));
+                        }
+                        catch (Exception ex)
+                        {
+                            var channelId = youtubeUrl.Replace("https://www.youtube.com/channel/", "");
+                            Console.WriteLine($"[Error] {channelId}");
+                            Console.WriteLine(ex.Message);
+                            await SleepRandom();
+                            continue;
+                        }
+                        var status = Status.Activity;
+                        if (info.Title == "")
+                            status = Status.Graduate;
+                        if (model == null)
+                        {
+                            model = new Vtuber();
+                            model.Id = (_id++) * -1;
+                            model.ChannelUrl = youtubeUrl;
+
+                            //----- Update Name -----
+                            var name = Regex.Match(_html, @"Original Name<\/h2>([\s\S]*?)<\/div>")
+                                .Groups[1].Value.Trim();
+                            model.Name = !string.IsNullOrEmpty(name) ? name : item.name;
+                            //model.Name = item.name;
+                            //----- Update Name -----
+
+                            //----- Update Company -----
+                            model.Company = "Hololive";
+
+                            var group = _html
+                                .Pipe(it => Regex.Match(it, @"(Category<\/h2>[\s\S]*?<\/div>)"))
+                                .Select(m => m.Groups[1].Value)
+                                .Pipe(it => Regex.Match(it, @"Category<\/h2>[\s\S]*?title=""(.*?)"""))
+                                .Select(m => m.Groups[1].Value);
+                            //var group = Regex.Match(_html, @"Category<\/h2>[\s\S]*?title=""(.*?)""")
+                            //    .Groups[1].Value.Trim();
+                            model.Group = getGroup(group);
+                            //----- Update Company -----
+
+                            model.Status = status;
+                            model.CreateTime = _now.ToString("yyyy-MM-dd HH:mm:ss"); ;
+                            model.ChannelName = info.Title;
+                            model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
+                            _db.Vtubers.CreateOrUpdate(model);
+                            //Console.WriteLine($"[{time}][{index}/{count}] Create jp vtuber {model.Name}");
+                            Console.WriteLine($"[{time}][{index}] Create jp vtuber {model.Name}");
+                        }
+                        else
+                        {
+                            if (model.Status == Status.Prepare ||
+                                model.Status == Status.Activity)
+                            {
+                                //if (item.name != "")
+                                //    model.Name = item.name;
+                                if (info.Title != "")
+                                    model.ChannelName = info.Title;
+                                if (info.Thumbnails.Count > 0)
+                                    model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
+                                //Console.WriteLine($"[{time}][{index}/{count}] Update jp vtuber {model.Name}");
+                                Console.WriteLine($"[{time}][{index}] Update jp vtuber {model.Name}");
+                            }
+                        }
+                        data = new Data
+                        {
+                            ChannelUrl = model.ChannelUrl,
+                            SubscriberCount = info.SubscriberCount,
+                            ViewCount = info.ViewCount
+                        };
+                        _db.Datas.CreateOrUpdate(data);
+                        await SleepRandom();
+                    }
+
+                    //找下一頁網址
+                    var nextChapter = html
+                        .Pipe(it => Regex.Match(it, @"href=""(.*?)"" >Next"))
+                        .Select(m => new
+                        {
+                            url = m.Groups[1].Value
+                        })
+                        .Pipe(it => it.url != "" ? it : null);
+
+                    bool isFinish()
+                    {
+                        if (nextChapter == null)
+                            return true;
+                        return false;
+                    }
+                    if (isFinish())
+                        break;
+                    nextChapterUrl = nextChapter!.url;
+                }
+            }
+
+            // Update Vtuber Data NIJISANJI
+            {
+                var index = 0;
+
+                var nextChapterUrl = $"https://hololist.net/nijisanji-popularity-ranking/";
+
+                while (true)
+                {
+                    using var response = await Retry(() =>
+                    {
+                        var clinet = _httpClient;
+                        var url = nextChapterUrl;
+                        return clinet.GetAsync(url);
+                    });
+                    var html = await response.Content.ReadAsStringAsync();
+                    var vtubers = html
+                        .Pipe(it => Regex.Match(it, @"class=""row""([\s\S]*?)pagination"))
+                        .Select(m => m.Groups[1].Value)
+                        .Pipe(it => Regex.Matches(it, @"https:\/\/hololist\.net\/(.*?)\/"" title=""(.*?)"""))
+                        .SelectMany<(string userId, string name)>(m => (
+                            m.Groups[1].Value.Trim(),
+                            m.Groups[2].Value.Trim()
+                        ));
+
+                    foreach (var item in vtubers)
+                    {
+                        index++;
+
+                        using var _response = await Retry(() =>
+                        {
+                            var clinet = _httpClient;
+                            var url = $"https://hololist.net/{item.userId}/";
+                            return clinet.GetAsync(url);
+                        });
+                        var _html = await _response.Content.ReadAsStringAsync();
+
+                        var youtubeUrl = Regex.Match(_html, @"(https:\/\/www\.youtube\.com\/channel\/.*?)\?")
+                            .Groups[1].Value.Trim();
+                        if (youtubeUrl == "")
+                            continue;
+
+                        var model = _db.Vtubers.Get(youtubeUrl);
+                        if (model != null)
+                            if (model.Status != Status.Prepare &&
+                                model.Status != Status.Activity)
+                                continue;
+
+                        var data = _db.Datas.Get(youtubeUrl);
+                        if (data != null)
+                            continue;
+
+                        _cacheChannelUrl[item.userId] = youtubeUrl;
+
+                        var time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        var youtube = new YoutubeClient(() => DelayRandom());
+                        var info = null as Channel;
+                        try
+                        {
+                            info = await Retry(() =>
+                                youtube.Channel.GetAsync(youtubeUrl));
+                        }
+                        catch (Exception ex)
+                        {
+                            var channelId = youtubeUrl.Replace("https://www.youtube.com/channel/", "");
+                            Console.WriteLine($"[Error] {channelId}");
+                            Console.WriteLine(ex.Message);
+                            await SleepRandom();
+                            continue;
+                        }
+                        var status = Status.Activity;
+                        if (info.Title == "")
+                            status = Status.Graduate;
+                        if (model == null)
+                        {
+                            model = new Vtuber();
+                            model.Id = (_id++) * -1;
+                            model.ChannelUrl = youtubeUrl;
+
+                            //----- Update Name -----
+                            var name = Regex.Match(_html, @"Original Name<\/h2>([\s\S]*?)<\/div>")
+                                .Groups[1].Value.Trim();
+                            model.Name = !string.IsNullOrEmpty(name) ? name : item.name;
+                            //model.Name = item.name;
+                            //----- Update Name -----
+
+                            //----- Update Company -----
+                            model.Company = "彩虹社";
+
+                            var group = _html
+                                .Pipe(it => Regex.Match(it, @"(Category<\/h2>[\s\S]*?<\/div>)"))
+                                .Select(m => m.Groups[1].Value)
+                                .Pipe(it => Regex.Match(it, @"Category<\/h2>[\s\S]*?title=""(.*?)"""))
+                                .Select(m => m.Groups[1].Value);
+                            //----- Update Company -----
+
+                            model.Status = status;
+                            model.CreateTime = _now.ToString("yyyy-MM-dd HH:mm:ss"); ;
+                            model.ChannelName = info.Title;
+                            model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
+                            _db.Vtubers.CreateOrUpdate(model);
+                            //Console.WriteLine($"[{time}][{index}/{count}] Create jp vtuber {model.Name}");
+                            Console.WriteLine($"[{time}][{index}] Create jp vtuber {model.Name}");
+                        }
+                        else
+                        {
+                            if (model.Status == Status.Prepare ||
+                                model.Status == Status.Activity)
+                            {
+                                //if (item.name != "")
+                                //    model.Name = item.name;
+                                if (info.Title != "")
+                                    model.ChannelName = info.Title;
+                                if (info.Thumbnails.Count > 0)
+                                    model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
+                                //Console.WriteLine($"[{time}][{index}/{count}] Update jp vtuber {model.Name}");
+                                Console.WriteLine($"[{time}][{index}] Update jp vtuber {model.Name}");
+                            }
+                        }
+                        data = new Data
+                        {
+                            ChannelUrl = model.ChannelUrl,
+                            SubscriberCount = info.SubscriberCount,
+                            ViewCount = info.ViewCount
+                        };
+                        _db.Datas.CreateOrUpdate(data);
+                        await SleepRandom();
+                    }
+
+                    //找下一頁網址
+                    var nextChapter = html
+                        .Pipe(it => Regex.Match(it, @"href=""(.*?)"" >Next"))
+                        .Select(m => new
+                        {
+                            url = m.Groups[1].Value
+                        })
+                        .Pipe(it => it.url != "" ? it : null);
+
+                    bool isFinish()
+                    {
+                        if (nextChapter == null)
+                            return true;
+                        return false;
+                    }
+                    if (isFinish())
+                        break;
+                    nextChapterUrl = nextChapter!.url;
+                }
+            }
+
+            // Update Vtuber Data JP
+            {
+                var index = 0;
+
+                var nextChapterUrl = $"https://hololist.net/category/jp/";
+
+                while (true)
+                {
+                    using var response = await Retry(() =>
+                    {
+                        var clinet = _httpClient;
+                        var url = nextChapterUrl;
+                        return clinet.GetAsync(url);
+                    });
+                    var html = await response.Content.ReadAsStringAsync();
+                    var vtubers = html
+                        .Pipe(it => Regex.Match(it, @"class=""row""([\s\S]*?)pagination"))
+                        .Select(m => m.Groups[1].Value)
+                        .Pipe(it => Regex.Matches(it, @"https:\/\/hololist\.net\/(.*?)\/"" title=""(.*?)"""))
+                        .SelectMany<(string userId, string name)>(m => (
+                            m.Groups[1].Value.Trim(),
+                            m.Groups[2].Value.Trim()
+                        ));
+
+                    foreach (var item in vtubers)
+                    {
+                        if (_cacheChannelUrl.ContainsKey(item.userId))
+                            continue;
+
+                        index++;
+
+                        using var _response = await Retry(() =>
+                        {
+                            var clinet = _httpClient;
+                            var url = $"https://hololist.net/{item.userId}/";
+                            return clinet.GetAsync(url);
+                        });
+                        var _html = await _response.Content.ReadAsStringAsync();
+
+                        var youtubeUrl = Regex.Match(_html, @"(https:\/\/www\.youtube\.com\/channel\/.*?)\?")
+                            .Groups[1].Value.Trim();
+                        if (youtubeUrl == "")
+                            continue;
+
+                        var model = _db.Vtubers.Get(youtubeUrl);
+                        if (model != null)
+                            if (model.Status != Status.Prepare &&
+                                model.Status != Status.Activity)
+                                continue;
+
+                        var data = _db.Datas.Get(youtubeUrl);
+                        if (data != null)
+                            continue;
+
+                        var time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        var youtube = new YoutubeClient(() => DelayRandom());
+                        var info = null as Channel;
+                        try
+                        {
+                            info = await Retry(() =>
+                                youtube.Channel.GetAsync(youtubeUrl));
+                        }
+                        catch (Exception ex)
+                        {
+                            var channelId = youtubeUrl.Replace("https://www.youtube.com/channel/", "");
+                            Console.WriteLine($"[Error] {channelId}");
+                            Console.WriteLine(ex.Message);
+                            await SleepRandom();
+                            continue;
+                        }
+                        var status = Status.Activity;
+                        if (info.Title == "")
+                            status = Status.Graduate;
+                        if (model == null)
+                        {
+                            model = new Vtuber();
+                            model.Id = (_id++) * -1;
+                            model.ChannelUrl = youtubeUrl;
+
+                            //----- Update Name -----
+                            var name = Regex.Match(_html, @"Original Name<\/h2>([\s\S]*?)<\/div>")
+                                .Groups[1].Value.Trim();
+                            model.Name = !string.IsNullOrEmpty(name) ? name : item.name;
+                            //model.Name = item.name;
+                            //----- Update Name -----
+
+                            //----- Update Company -----
+                            var group = _html
+                                .Pipe(it => Regex.Match(it, @"(Category<\/h2>[\s\S]*?<\/div>)"))
+                                .Select(m => m.Groups[1].Value)
+                                .Pipe(it => Regex.Match(it, @"Category<\/h2>[\s\S]*?title=""(.*?)"""))
+                                .Select(m => m.Groups[1].Value);
+                            //----- Update Company -----
+
+                            model.Status = status;
+                            model.CreateTime = _now.ToString("yyyy-MM-dd HH:mm:ss"); ;
+                            model.ChannelName = info.Title;
+                            model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
+                            _db.Vtubers.CreateOrUpdate(model);
+                            //Console.WriteLine($"[{time}][{index}/{count}] Create jp vtuber {model.Name}");
+                            Console.WriteLine($"[{time}][{index}] Create jp vtuber {model.Name}");
+                        }
+                        else
+                        {
+                            if (model.Status == Status.Prepare ||
+                                model.Status == Status.Activity)
+                            {
+                                //if (item.name != "")
+                                //    model.Name = item.name;
+                                if (info.Title != "")
+                                    model.ChannelName = info.Title;
+                                if (info.Thumbnails.Count > 0)
+                                    model.Thumbnail = info.Thumbnails.LastOrDefault()?.Url ?? "";
+                                //Console.WriteLine($"[{time}][{index}/{count}] Update jp vtuber {model.Name}");
+                                Console.WriteLine($"[{time}][{index}] Update jp vtuber {model.Name}");
+                            }
+                        }
+                        data = new Data
+                        {
+                            ChannelUrl = model.ChannelUrl,
+                            SubscriberCount = info.SubscriberCount,
+                            ViewCount = info.ViewCount
+                        };
+                        _db.Datas.CreateOrUpdate(data);
+                        await SleepRandom();
+                    }
+
+                    //找下一頁網址
+                    var nextChapter = html
+                        .Pipe(it => Regex.Match(it, @"href=""([^""]*?)"" >Next"))
+                        .Select(m => new
+                        {
+                            url = m.Groups[1].Value
+                        })
+                        .Pipe(it => it.url != "" ? it : null);
+
+                    bool isFinish()
+                    {
+                        if (nextChapter == null)
+                            return true;
+                        return false;
+                    }
+                    if (isFinish())
+                        break;
+                    nextChapterUrl = nextChapter!.url;
+                }
+            }
+        }
     }
 }
