@@ -123,7 +123,7 @@ namespace VtuberCrawler.Crawlers
                     }
                     var status = getStatus(item.status);
                     if (info.Title == "")
-                        status = Status.Graduate;
+                        status = Status.NotFound;
                     if (model == null)
                     {
                         model = new Vtuber();
@@ -289,7 +289,7 @@ namespace VtuberCrawler.Crawlers
                     }
                     var status = getStatus(item.activity);
                     if (info.Title == "")
-                        status = Status.Graduate;
+                        status = Status.NotFound;
                     var area = getArea(item.nationality);
                     if (model == null)
                     {
@@ -427,7 +427,7 @@ namespace VtuberCrawler.Crawlers
                         }
                         var status = Status.Activity;
                         if (info.Title == "")
-                            status = Status.Graduate;
+                            status = Status.NotFound;
                         if (model == null)
                         {
                             model = new Vtuber();
@@ -663,7 +663,7 @@ namespace VtuberCrawler.Crawlers
                         }
                         var status = Status.Activity;
                         if (info.Title == "")
-                            status = Status.Graduate;
+                            status = Status.NotFound;
                         if (model == null)
                         {
                             model = new Vtuber();
@@ -815,7 +815,7 @@ namespace VtuberCrawler.Crawlers
                         }
                         var status = Status.Activity;
                         if (info.Title == "")
-                            status = Status.Graduate;
+                            status = Status.NotFound;
                         if (model == null)
                         {
                             model = new Vtuber();
@@ -965,7 +965,7 @@ namespace VtuberCrawler.Crawlers
                         }
                         var status = Status.Activity;
                         if (info.Title == "")
-                            status = Status.Graduate;
+                            status = Status.NotFound;
                         if (model == null)
                         {
                             model = new Vtuber();

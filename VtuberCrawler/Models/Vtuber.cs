@@ -6,7 +6,8 @@
         Activity,
         NotActivity,
         Graduate,
-        Closure
+        Closure,
+        NotFound
     }
 
     public class Vtuber
